@@ -2,7 +2,9 @@
 
 Template.todos.helpers({
 	'todo': function(){
-		return Todos.find({}, {sort:{createdAt:-1}});
+		var currentList = this._id;
+		var currentUser = Meteor.userId();
+		return Todos.find({createdBy: currentUser,listId: currentList}, {sort:{createdAt:-1}});
 	}
 });
 
@@ -19,13 +21,23 @@ Template.todoItem.helpers({
 
 Template.todosCount.helpers({
 	'totalTodos': function(){
-		return Todos.find().count();
+		var currentList = this._id;
+		var currentUser = Meteor.userId();
+		return Todos.find({createdBy: currentUser, listId: currentList}).count();
 	},
 	'completedTodos': function(){
-		return Todos.find({completed:true}).count();
+		var currentList = this._id;
+		var currentUser = Meteor.userId();
+		return Todos.find({createdBy: currentUser, listId: currentList, completed:true}).count();
 	}
 });
 
+Template.lists.helpers({
+	'list': function(){
+		var currentUser = Meteor.userId();
+		return Lists.find({createdBy: currentUser}, {sort: {name: 1}});
+	}
+});
 
 // events
 
@@ -33,10 +45,14 @@ Template.addTodo.events({
 	'submit form': function(event){
 		event.preventDefault();
 		var todoName = $('[name="todoName"]').val();
+		var currentList = this._id;
+		var currentUser = Meteor.userId();
 		Todos.insert({
 			name:todoName,
 			completed: false,
-			createdAt: new Date()
+			createdAt: new Date(),
+			createdBy: currentUser,
+			listId: currentList
 		});
 		$('[name="todoName"]').val('');
 		
@@ -69,5 +85,31 @@ Template.todoItem.events({
 		} else {
 			Todos.update({_id:documentId}, {$set: {completed:true}});
 		}
+	}
+});
+
+Template.addList.events({
+	'submit form': function(event){
+		event.preventDefault();
+		var listName = $('[name="listName"]').val();
+		var currentUser = Meteor.userId();
+		Lists.insert({
+			name: listName,
+			createdBy: currentUser
+		}, function(err, rst){
+			if (!err){
+				Router.go('listPage', {_id: rst});
+			}
+			
+		});
+		$('[name="listName"]').val("");
+	}
+});
+
+Template.navigation.events({
+	'click .logout': function(events){
+		events.preventDefault();
+		Meteor.logout();
+		Router.go('login');
 	}
 });
