@@ -46,6 +46,14 @@ Template.addTodo.events({
 		event.preventDefault();
 		var todoName = $('[name="todoName"]').val();
 		var currentList = this._id;
+		Meteor.call('createListItem', todoName, currentList, function(err, rst){
+			if (err){
+				console.log(err.reason);
+			} else {
+				$('[name="todoName"]').val('');
+			}
+		});
+		/*
 		var currentUser = Meteor.userId();
 		Todos.insert({
 			name:todoName,
@@ -53,9 +61,7 @@ Template.addTodo.events({
 			createdAt: new Date(),
 			createdBy: currentUser,
 			listId: currentList
-		});
-		$('[name="todoName"]').val('');
-		
+		});*/
 	}
 });
 
@@ -65,7 +71,11 @@ Template.todoItem.events({
 		var documentId = this._id;
 		var confirm = window.confirm("Delete this task?");
 		if (confirm){
-			Todos.remove({_id:documentId});
+			Meteor.call('removeListItem', documentId, function(err, rst){
+				if (err){
+					console.log(err.reason);
+				}
+			});
 		}
 	},
 	'keyup [name=todoItem]': function(event){
@@ -74,17 +84,21 @@ Template.todoItem.events({
 		} else {
 			var todoItem = $(event.target).val();
 			var documentId = this._id;
-			Todos.update({_id:documentId}, {$set: {name:todoItem}});
+			Meteor.call('updateListItem', todoItem, documentId, function(err, rst){
+				if (err){
+					console.log(err.reason);
+				}
+			});
 		}
 	},
 	'change [type="checkbox"]': function(){
 		var documentId = this._id;
 		var isCompleted = this.completed;
-		if (isCompleted){
-			Todos.update({_id:documentId}, {$set: {completed:false}});
-		} else {
-			Todos.update({_id:documentId}, {$set: {completed:true}});
-		}
+		Meteor.call('changeItemStatus', !isCompleted, documentId, function(err, rst){
+			if (err){
+				console.log(err.reason);
+			}
+		});
 	}
 });
 
@@ -92,17 +106,16 @@ Template.addList.events({
 	'submit form': function(event){
 		event.preventDefault();
 		var listName = $('[name="listName"]').val();
-		var currentUser = Meteor.userId();
-		Lists.insert({
-			name: listName,
-			createdBy: currentUser
-		}, function(err, rst){
+		Meteor.call('createNewList', listName, function(err, rst){
+			// console.log(rst);
 			if (!err){
+				// console.log(rst);
 				Router.go('listPage', {_id: rst});
+				$('[name="listName"]').val("");
+			} else {
+				console.log(err.reason);
 			}
-			
 		});
-		$('[name="listName"]').val("");
 	}
 });
 
@@ -112,4 +125,8 @@ Template.navigation.events({
 		Meteor.logout();
 		Router.go('login');
 	}
+});
+
+Template.lists.onCreated(function(){
+	this.subscribe('lists');
 });
